@@ -1,24 +1,15 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 24 08:14:15 2023
-
-@author: migue
-"""
-
 import socket
 
 def obtener_direccion_ip():
     try:
-        # Obtiene la dirección IP del host local
-        direccion_ip = socket.gethostbyname(socket.gethostname())
+        
+        # Obtenemos la dirección IP asociada al nombre del host
+        direccion_ip = socket.gethostbyname(ens33)
         return direccion_ip
-    except:
-        return None
+    except socket.error as e:
+        return str(e)
 
-# Llama a la función para obtener la dirección IP
-direccion_ip = obtener_direccion_ip()
+# Llamamos a la función para obtener la dirección IP y la imprimimos
+ip = obtener_direccion_ip()
+print(f"La dirección IP de la red local es: {ip}")
 
-if direccion_ip:
-    print(f"La dirección IP local es: {direccion_ip}")
-else:
-    print("No se pudo obtener la dirección IP.")
