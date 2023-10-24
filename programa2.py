@@ -87,6 +87,11 @@ interface="ens33"
 mi_ip = obtener_direccion_ip(interface)
 mi_puerto = 12345 
 
+if direccion_ip:
+    print(f"La dirección IP (inet) de la interfaz {interfaz} es: {direccion_ip}")
+else:
+    print("No se pudo obtener la dirección IP.")
+
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind((mi_ip, mi_puerto))
 s.settimeout(1)
