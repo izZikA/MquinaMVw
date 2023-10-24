@@ -1,11 +1,28 @@
 import socket
 import threading
 import time
+import subprocess
 
 
 # Define un conjunto para realizar un seguimiento de los usuarios actuales
 usuarios = set()
 
+def obtener_direccion_ip(interface):
+    try:
+        # Ejecutar el comando 'ip addr' y capturar la salida
+        resultado = subprocess.check_output(['ip', 'addr', 'show', interface]).decode('utf-8')
+
+        # Buscar la línea que contiene 'inet' en la salida del comando
+        for linea in resultado.split('\n'):
+            if 'inet' in linea:
+                partes = linea.strip().split()
+                inet_index = partes.index('inet')
+                direccion_ip = partes[inet_index + 1].split('/')[0]
+                return direccion_ip
+    except subprocess.CalledProcessError:
+        return "No se pudo obtener la dirección IP"
+    
+    
 def recibir_mensajes():
     mensaje_confirmado = False
     while True:
@@ -65,7 +82,9 @@ usuarios = {("/Debian1", "192.168.106.136"), ("/Debian2", "192.168.106.137"),
            ("/Debian5", "192.168.106.140")}
 # Configura la dirección y el puerto en esta máquina virtual
 # Se cambia conforme el ip de la maquina virtual
-mi_ip = "192.168.253.129"
+
+interface="ens33"
+mi_ip = obtener_direccion_ip(interface)
 mi_puerto = 12345 
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
