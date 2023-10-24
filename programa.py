@@ -72,10 +72,10 @@ def enviar_mensajes():
 # Se cambia conforme el ip de la maquina virtual
 interfaz = "ens33"  # Reemplaza con el nombre de la interfaz que deseas consultar
 mi_ip = obtener_direccion_ip(interfaz)
-   if mi_ip:
-        print(f"La dirección IP (inet) de la interfaz {interfaz} es: {mi_ip}")
-    else:
-        print("No se pudo obtener la dirección IP.")
+if mi_ip:
+   print(f"La dirección IP (inet) de la interfaz {interfaz} es: {mi_ip}")
+else:
+    print("No se pudo obtener la dirección IP.")
 mi_puerto = 12345 
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
