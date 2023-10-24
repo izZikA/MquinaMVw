@@ -6,7 +6,7 @@ import subprocess
 
 
 mensajes_para_guardar = []
-interfaz = "ens33"  # Reemplaza con el nombre de la interfaz que deseas consultar
+
 
 def obtener_direccion_ip(interface):
     try:
@@ -70,6 +70,7 @@ def enviar_mensajes():
 
 # Configura la dirección y el puerto en esta máquina virtual
 # Se cambia conforme el ip de la maquina virtual
+interfaz = "ens33"  # Reemplaza con el nombre de la interfaz que deseas consultar
 mi_ip = obtener_direccion_ip(interfaz)
    if mi_ip:
         print(f"La dirección IP (inet) de la interfaz {interfaz} es: {direccion_ip}")
