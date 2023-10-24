@@ -59,19 +59,21 @@ def enviar_mensajes():
         for nombre, destino in usuarios:
             if nombre in mensaje:
                 priv = 1
-                timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                mensaje_completo = f"{timestamp} - Mensaje ENVIADO a {nombre}:{destino}: {mensaje}"
-                destino_puerto = 12345
-                s.sendto(mensaje.encode('utf-8'), (destino, destino_puerto))
-                mensajes_para_guardar.append(mensaje_completo)
+                if destino != mi_ip:
+                    timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                    mensaje_completo = f"{timestamp} - Mensaje ENVIADO a {nombre}:{destino}: {mensaje}"
+                    destino_puerto = 12345
+                    s.sendto(mensaje.encode('utf-8'), (destino, destino_puerto))
+                    mensajes_para_guardar.append(mensaje_completo)
 
         if priv == 0:
-            for nombre, destino in usuarios:
-                timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-                mensaje_completo = f"{timestamp} - Mensaje ENVIADO a todos: {mensaje}"
-                destino_puerto = 12345
-                s.sendto(mensaje.encode('utf-8'), (destino, destino_puerto))
-                mensajes_para_guardar.append(mensaje_completo)
+            if destino != mi_ip:
+                for nombre, destino in usuarios:
+                    timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                    mensaje_completo = f"{timestamp} - Mensaje ENVIADO a todos: {mensaje}"
+                    destino_puerto = 12345
+                    s.sendto(mensaje.encode('utf-8'), (destino, destino_puerto))
+                    mensajes_para_guardar.append(mensaje_completo)
 
 
 mensajes_para_guardar = []
