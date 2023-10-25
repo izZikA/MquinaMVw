@@ -3,7 +3,6 @@ import threading
 import time
 import subprocess
 
-
 # Define un conjunto para realizar un seguimiento de los usuarios actuales
 usuarios = set()
 
@@ -21,8 +20,7 @@ def obtener_direccion_ip(interface):
                 return direccion_ip
     except subprocess.CalledProcessError:
         return "No se pudo obtener la dirección IP"
-    
-    
+
 def recibir_mensajes():
     mensaje_confirmado = False
     while True:
@@ -32,11 +30,12 @@ def recibir_mensajes():
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             mensaje_completo = f"{timestamp} - Mensaje RECIBIDO de {direccion}: {mensaje_decodificado}"
             mensajes_para_guardar.append(mensaje_completo)
-            
+
             if not mensaje_confirmado:
                 # Enviar un mensaje de confirmación al remitente
                 confirmacion = "Confirmo la recepción de tu mensaje"
                 s.sendto(confirmacion.encode('utf-8'), direccion)
+                print(f"** Mensaje recibido y confirmación enviada **")
                 print(mensaje_completo)
                 mensaje_confirmado = True
 
@@ -49,6 +48,7 @@ def guardar_mensajes():
             mensaje_para_guardar = mensajes_para_guardar.pop(0)
             with open("logMensajes.txt", "a") as log_file:
                 log_file.write(mensaje_para_guardar + "\n")
+            print(f"** Mensaje guardado: {mensaje_para_guardar} **")
             time.sleep(1)  # Espera un segundo antes de intentar guardar el siguiente mensaje
 
 def enviar_mensajes():
@@ -65,28 +65,31 @@ def enviar_mensajes():
                     destino_puerto = 12345
                     s.sendto(mensaje.encode('utf-8'), (destino, destino_puerto))
                     mensajes_para_guardar.append(mensaje_completo)
-        for nombre, destino in usuarios:
-            if priv == 0:
+                    print(f"** Mensaje privado enviado a {nombre}:{destino}: {mensaje} **")
+                    
+        if priv == 0:
+            for nombre, destino in usuarios:
                 if destino != mi_ip:
                     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                     mensaje_completo = f"{timestamp} - Mensaje ENVIADO a todos: {mensaje}"
                     destino_puerto = 12345
                     s.sendto(mensaje.encode('utf-8'), (destino, destino_puerto))
                     mensajes_para_guardar.append(mensaje_completo)
-
+                    print(f"** Mensaje enviado a todos: {mensaje} **")
 
 mensajes_para_guardar = []
-#usuarios que estan en el chat
+# Usuarios que están en el chat
 
 usuarios = {("/Debian1", "192.168.106.136"), ("/Debian2", "192.168.106.137"),
            ("/Debian3", "192.168.106.138"), ("/Debian4", "192.168.106.139"),
            ("/Debian5", "192.168.106.140")}
-# Configura la dirección y el puerto en esta máquina virtual
-# Se cambia conforme el ip de la maquina virtual
 
-interface="ens33"
+# Configura la dirección y el puerto en esta máquina virtual
+# Se cambia conforme el IP de la máquina virtual
+
+interface = "ens33"
 mi_ip = obtener_direccion_ip(interface)
-mi_puerto = 12345 
+mi_puerto = 12345
 
 if mi_ip:
     print(f"La dirección IP (inet) de la interfaz {interface} es: {mi_ip}")
