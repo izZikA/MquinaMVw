@@ -65,10 +65,9 @@ def enviar_mensajes():
                     destino_puerto = 12345
                     s.sendto(mensaje.encode('utf-8'), (destino, destino_puerto))
                     mensajes_para_guardar.append(mensaje_completo)
-
-        if priv == 0:
-            if destino != mi_ip:
-                for nombre, destino in usuarios:
+        for nombre, destino in usuarios:
+            if priv == 0:
+                if destino != mi_ip:
                     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                     mensaje_completo = f"{timestamp} - Mensaje ENVIADO a todos: {mensaje}"
                     destino_puerto = 12345
