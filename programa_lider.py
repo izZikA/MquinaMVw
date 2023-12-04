@@ -51,9 +51,13 @@ def recibir_mensajes():
         try:
             mensaje_recibido, direccion = s.recvfrom(1024)
             mensaje_decodificado = mensaje_recibido.decode('utf-8')
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            mensaje_completo = f"{timestamp} - Mensaje RECIBIDO de {direccion}: {mensaje_decodificado}"
-            mensajes_para_guardar.append(mensaje_completo)
+
+            if mensaje_decodificado == "heartbeat":
+                estado_de_nodos[direccion[0]] = True
+            else:
+                timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                mensaje_completo = f"{timestamp} - Mensaje RECIBIDO de {direccion}: {mensaje_decodificado}"
+                mensajes_para_guardar.append(mensaje_completo)
             #print(mensaje_completo)
             
             if not mensaje_confirmado:
@@ -90,12 +94,22 @@ def enviar_mensajes():
 
 def verificar_nodos():
     while True:
+        # Espera un tiempo suficiente para recibir heartbeats
+        time.sleep(6)
+
+        # Restablece todos los estados de nodos a False
+        for nodo in lista_de_nodos:
+            estado_de_nodos[nodo] = False
+
+        # Espera un poco para dar tiempo a los heartbeats de llegar
+        time.sleep(1)
+
+        # Ahora verifica y reporta el estado actualizado de cada nodo
         for nodo in lista_de_nodos:
             if estado_de_nodos[nodo]:
                 print(f"Nodo {nodo} está vivo.")
             else:
                 print(f"Nodo {nodo} podría estar caído.")
-        time.sleep(10)  # Verificar cada 10 segundos, por ejemplo
 
 
 # Configura la dirección y el puerto en esta máquina virtual
@@ -139,5 +153,4 @@ thread_guardar.start()
 # El programa principal no hace nada más que esperar
 while True:
     pass
-
 
