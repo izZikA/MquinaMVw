@@ -48,6 +48,7 @@ def obtener_direccion_ip(interface):
 
 def recibir_mensajes():
     mensaje_confirmado = False
+    mensaje_completo = ""  # Inicializa mensaje_completo al principio
     while True:
         try:
             mensaje_recibido, direccion = s.recvfrom(1024)
@@ -58,16 +59,16 @@ def recibir_mensajes():
                 timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 mensaje_completo = f"{timestamp} - Mensaje RECIBIDO de {direccion}: {mensaje_decodificado}"
                 mensajes_para_guardar.append(mensaje_completo)
-            #print(mensaje_completo)
             
-            if not mensaje_confirmado:
+            if not mensaje_confirmado and mensaje_completo:
                 # Enviar un mensaje de confirmación al remitente
                 confirmacion = "Confirmo la recepcion de tu mensaje"
                 s.sendto(confirmacion.encode('utf-8'), direccion)
-                print(mensaje_completo)
+                print(mensaje_completo)  # Ahora esto no causará error porque mensaje_completo está inicializado
                 mensaje_confirmado=True
         except socket.timeout:
             mensaje_confirmado = False
+
 
 
 def guardar_mensajes():
