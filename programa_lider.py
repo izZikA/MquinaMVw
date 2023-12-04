@@ -4,11 +4,11 @@ import time
 import subprocess
 
 # Direcciones IP y puertos de los nodos en la red
-NODES = [("192.168.106.135", 5000), ("192.168.106.137", 5000), ("192.168.106.138", 5000)]
+NODES = [("192.168.106.137", 5000), ("192.168.106.135", 5000)]
 # Intervalo en segundos para enviar heartbeats
-HEARTBEAT_INTERVAL = 1
+HEARTBEAT_INTERVAL = 5
 # Tiempo máximo en segundos para considerar un nodo como inactivo
-MAX_INACTIVE_TIME = 5
+MAX_INACTIVE_TIME = 15
 
 # Registro de la última vez que se recibió un heartbeat de cada nodo
 last_heartbeat = {}
@@ -17,13 +17,8 @@ last_heartbeat = {}
 nodo_maestro = None
 
 # Esta función elige el nodo con la IP más alta como maestro
-def elegir_nodo_maestro():
-    global last_heartbeat
-    nodos_activos = [node for node in NODES if last_heartbeat.get(node, 0) > time.time() - MAX_INACTIVE_TIME]
-    if nodos_activos:
-        return max(nodos_activos, key=lambda node: socket.inet_aton(node[0]))
-    return None
-
+def elegir_nodo_maestro(nodos):
+    return max(nodos, key=lambda node: socket.inet_aton(node[0]))
 
 # Esta función envía heartbeats a todos los nodos
 def send_heartbeats():
@@ -41,17 +36,24 @@ def send_heartbeats():
 # Esta función recibe heartbeats y actualiza el estado de los nodos
 def receive_heartbeats():
     global nodo_maestro
+
     while True:
         try:
             data, addr = sock.recvfrom(1024)
             last_heartbeat[addr] = time.time()
             print(f"Heartbeat recibido de {addr}, nodo activo")
 
-            # Elegir un nuevo nodo maestro si es necesario
-            nuevo_maestro = elegir_nodo_maestro()
-            if nuevo_maestro and nuevo_maestro != nodo_maestro:
-                nodo_maestro = nuevo_maestro
-                print(f"Nuevo nodo maestro es {nodo_maestro}")
+            # Verificar si el nodo que envió el heartbeat es nuevo y si tiene la IP más alta
+            if addr not in NODES:
+                NODES.append(addr)
+                print(f"Nuevo nodo detectado: {addr}")
+
+            # Revisar si el nodo recién agregado o actualizado tiene una IP más alta
+            possible_new_master = elegir_nodo_maestro(NODES)
+            if possible_new_master != nodo_maestro:
+                nodo_maestro = possible_new_master
+                print(f"El nodo maestro ha cambiado a {nodo_maestro}")
+
         except socket.timeout:
             pass
 
@@ -82,6 +84,9 @@ def obtener_direccion_ip(interface):
 interfaz = "ens33"
 mi_ip = obtener_direccion_ip(interfaz)
 
+# Asignar el nodo maestro inicial
+nodo_maestro = elegir_nodo_maestro(NODES)
+
 # Crear socket UDP
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((mi_ip, 5000))
@@ -95,5 +100,4 @@ receive_thread.start()
 
 send_thread.join()
 receive_thread.join()
-
 
