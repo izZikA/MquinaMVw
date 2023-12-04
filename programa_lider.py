@@ -75,7 +75,20 @@ def check_inactive_nodes():
         last_heartbeat[node] = current_time
 
 def obtener_direccion_ip(interface):
-    # ... Función existente sin cambios ...
+    try:
+        # Ejecutar el comando 'ip addr' y capturar la salida
+        resultado = subprocess.check_output(['ip', 'addr', 'show', interface]).decode('utf-8')
+
+        # Buscar la línea que contiene 'inet' en la salida del comando
+        for linea in resultado.split('\n'):
+            if 'inet' in linea:
+                partes = linea.strip().split()
+                inet_index = partes.index('inet')
+                direccion_ip = partes[inet_index + 1].split('/')[0]
+                return direccion_ip
+
+    except subprocess.CalledProcessError:
+        return "No se pudo obtener la dirección IP"
 
 interfaz = "ens33"
 mi_ip = obtener_direccion_ip(interfaz)
