@@ -4,7 +4,7 @@ import time
 import subprocess
 
 # Direcciones IP y puertos de los nodos en la red
-NODES = [("192.168.106.137", 5000), ("192.168.106.135", 5000)]
+NODES = [("192.168.192.101", 5000), ("192.168.192.102", 5000), ("192.168.192.103", 5000)]
 # Intervalo en segundos para enviar heartbeats
 HEARTBEAT_INTERVAL = 5
 # Tiempo máximo en segundos para considerar un nodo como inactivo
@@ -26,32 +26,20 @@ def send_heartbeats():
     while True:
         for node in NODES:
             try:
-                # Si este nodo es el nodo maestro, agrega una declaración específica
-                if mi_ip == nodo_maestro[0]:
-                    msg = f"Heartbeat from {mi_ip}, soy el nodo maestro"
-                else:
-                    msg = f"Heartbeat from {mi_ip}, master: {nodo_maestro[0]}"
+                # Incluir información del nodo maestro en el mensaje
+                msg = f"Heartbeat from {mi_ip}, master: {nodo_maestro[0]}"
                 sock.sendto(msg.encode(), node)
             except Exception as e:
                 print(f"Error al enviar heartbeat a {node}: {e}")
         time.sleep(HEARTBEAT_INTERVAL)
 
-
 # Esta función recibe heartbeats y actualiza el estado de los nodos
 def receive_heartbeats():
-    global nodo_maestro
     while True:
         try:
             data, addr = sock.recvfrom(1024)
             last_heartbeat[addr] = time.time()
             print(f"Heartbeat recibido de {addr}, nodo activo")
-
-            # Comprobar si el nodo que envió el heartbeat debería ser el nuevo maestro
-            if addr[0] > nodo_maestro[0]:
-                print(f"Detectado nodo con IP más alta {addr}. Reelecting master node.")
-                nodo_maestro = addr
-                print(f"Nuevo nodo maestro es {nodo_maestro}")
-
         except socket.timeout:
             pass
 
@@ -97,3 +85,4 @@ receive_thread.start()
 
 send_thread.join()
 receive_thread.join()
+
