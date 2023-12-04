@@ -26,12 +26,16 @@ def send_heartbeats():
     while True:
         for node in NODES:
             try:
-                # Incluir información del nodo maestro en el mensaje
-                msg = f"Heartbeat from {mi_ip}, master: {nodo_maestro[0]}"
+                # Si este nodo es el nodo maestro, agrega una declaración específica
+                if mi_ip == nodo_maestro[0]:
+                    msg = f"Heartbeat from {mi_ip}, soy el nodo maestro"
+                else:
+                    msg = f"Heartbeat from {mi_ip}, master: {nodo_maestro[0]}"
                 sock.sendto(msg.encode(), node)
             except Exception as e:
                 print(f"Error al enviar heartbeat a {node}: {e}")
         time.sleep(HEARTBEAT_INTERVAL)
+
 
 # Esta función recibe heartbeats y actualiza el estado de los nodos
 def receive_heartbeats():
