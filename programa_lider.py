@@ -110,3 +110,12 @@ thread_recibir.start()
 thread_enviar.start()
 thread_guardar.start()
 thread_heartbeats.start()
+
+
+# El programa principal no hace nada más que esperar
+while True:
+    pass
+
+
+
+
