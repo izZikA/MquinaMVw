@@ -62,7 +62,7 @@ mi_ip=obtener_direccion_ip(interfaz)
 # Crear socket UDP
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # Asignar IP y puerto local
-sock.bind((mi_ip, 12345))
+sock.bind((mi_ip, 5000))
 sock.settimeout(1)
 
 # Registro de la última vez que se recibió un heartbeat de cada nodo
