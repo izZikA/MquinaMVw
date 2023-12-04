@@ -4,7 +4,7 @@ import time
 import subprocess
 
 # Direcciones IP y puertos de los nodos en la red
-NODES = [("192.168.1.2", 5000), ("192.168.1.3", 5000), ("192.168.1.4", 5000)]
+NODES = [("192.168.192.13", 5000), ("192.168.192.13", 5000)]
 # Ordenar los nodos por dirección IP de mayor a menor
 NODES.sort(key=lambda node: node[0], reverse=True)
 
