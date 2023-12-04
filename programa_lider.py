@@ -39,11 +39,19 @@ def send_heartbeats():
 
 # Esta función recibe heartbeats y actualiza el estado de los nodos
 def receive_heartbeats():
+    global nodo_maestro
     while True:
         try:
             data, addr = sock.recvfrom(1024)
             last_heartbeat[addr] = time.time()
             print(f"Heartbeat recibido de {addr}, nodo activo")
+
+            # Comprobar si el nodo que envió el heartbeat debería ser el nuevo maestro
+            if addr[0] > nodo_maestro[0]:
+                print(f"Detectado nodo con IP más alta {addr}. Reelecting master node.")
+                nodo_maestro = addr
+                print(f"Nuevo nodo maestro es {nodo_maestro}")
+
         except socket.timeout:
             pass
 
