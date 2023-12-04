@@ -3,7 +3,7 @@ import threading
 import time
 import subprocess
 
-lista_de_nodos = ["192.168.192.1", "192.168.1.3", "192.168.1.4"]  # Ejemplo
+lista_de_nodos = ["192.168.192.13"]  # Ejemplo
 estado_de_nodos = {nodo: False for nodo in lista_de_nodos}  # False significa 'no confirmado'
 
 
