@@ -6,7 +6,7 @@ import subprocess
 # Direcciones IP y puertos de los nodos en la red
 NODES = [("192.168.106.135", 5000), ("192.168.106.137", 5000), ("192.168.106.138", 5000)]
 # Intervalo en segundos para enviar heartbeats
-HEARTBEAT_INTERVAL = 5
+HEARTBEAT_INTERVAL = 1
 # Tiempo máximo en segundos para considerar un nodo como inactivo
 MAX_INACTIVE_TIME = 15
 
