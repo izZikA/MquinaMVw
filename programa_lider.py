@@ -17,8 +17,13 @@ last_heartbeat = {}
 nodo_maestro = None
 
 # Esta función elige el nodo con la IP más alta como maestro
-def elegir_nodo_maestro(nodos):
-    return max(nodos, key=lambda node: socket.inet_aton(node[0]))
+def elegir_nodo_maestro():
+    global last_heartbeat
+    nodos_activos = [node for node in NODES if last_heartbeat.get(node, 0) > time.time() - MAX_INACTIVE_TIME]
+    if nodos_activos:
+        return max(nodos_activos, key=lambda node: socket.inet_aton(node[0]))
+    return None
+
 
 # Esta función envía heartbeats a todos los nodos
 def send_heartbeats():
@@ -35,16 +40,24 @@ def send_heartbeats():
 
 # Esta función recibe heartbeats y actualiza el estado de los nodos
 def receive_heartbeats():
+    global nodo_maestro
     while True:
         try:
             data, addr = sock.recvfrom(1024)
             last_heartbeat[addr] = time.time()
             print(f"Heartbeat recibido de {addr}, nodo activo")
+
+            # Elegir un nuevo nodo maestro si es necesario
+            nuevo_maestro = elegir_nodo_maestro()
+            if nuevo_maestro and nuevo_maestro != nodo_maestro:
+                nodo_maestro = nuevo_maestro
+                print(f"Nuevo nodo maestro es {nodo_maestro}")
         except socket.timeout:
             pass
 
         # Verificar el estado del nodo maestro
         verificar_nodo_maestro()
+
 
 def verificar_nodo_maestro():
     global nodo_maestro
@@ -68,6 +81,7 @@ def obtener_direccion_ip(interface):
 
 interfaz = "ens33"
 mi_ip = obtener_direccion_ip(interfaz)
+
 # Crear socket UDP
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((mi_ip, 5000))
@@ -81,8 +95,5 @@ receive_thread.start()
 
 send_thread.join()
 receive_thread.join()
-# Asignar el nodo maestro inicial
-nodo_maestro = elegir_nodo_maestro(NODES)
-
 
 
