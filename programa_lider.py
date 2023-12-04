@@ -3,82 +3,77 @@ import threading
 import time
 import subprocess
 
-mensajes_para_guardar = []
-nodos_conocidos = ["192.168.192.", "192.168.192."]  # Lista de nodos conocidos
 
-def obtener_direccion_ip(interface):
-    # ... Misma función existente ...
+# Direcciones IP y puertos de los nodos en la red
+NODES = [("192.168.192.", 5000), ("192.168.192.", 5000)]
+# Intervalo en segundos para enviar heartbeats
+HEARTBEAT_INTERVAL = 5
+# Tiempo máximo en segundos para considerar un nodo como inactivo
+MAX_INACTIVE_TIME = 15
 
-def recibir_mensajes():
+# Esta función envía heartbeats a todos los nodos
+def send_heartbeats():
+    while True:
+        for node in NODES:
+            try:
+                sock.sendto(b"Heartbeat", node)
+            except Exception as e:
+                print(f"Error al enviar heartbeat a {node}: {e}")
+        time.sleep(HEARTBEAT_INTERVAL)
+
+# Esta función recibe heartbeats y actualiza el estado de los nodos
+def receive_heartbeats():
     while True:
         try:
-            mensaje_recibido, direccion = s.recvfrom(1024)
-            mensaje_decodificado = mensaje_recibido.decode('utf-8')
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-
-            if mensaje_decodificado == "heartbeat":
-                responder_heartbeat(direccion)
-                mensaje_completo = f"{timestamp} - Heartbeat RECIBIDO de {direccion}"
-            else:
-                mensaje_completo = f"{timestamp} - Mensaje RECIBIDO de {direccion}: {mensaje_decodificado}"
-            
-            mensajes_para_guardar.append(mensaje_completo)
-            print(mensaje_completo)
-
+            data, addr = sock.recvfrom(1024)
+            last_heartbeat[addr] = time.time()
+            print(f"Heartbeat recibido de {addr}, nodo activo")
         except socket.timeout:
-            continue
+            pass
 
-def responder_heartbeat(direccion):
-    confirmacion = "Heartbeat recibido"
-    s.sendto(confirmacion.encode('utf-8'), direccion)
+        # Verificar nodos inactivos
+        current_time = time.time()
+        for node in NODES:
+            if current_time - last_heartbeat.get(node, 0) > MAX_INACTIVE_TIME:
+                print(f"{node} ha dejado de estar activo")
+                last_heartbeat[node] = current_time
 
-def guardar_mensajes():
-    while True:
-        if mensajes_para_guardar:
-            mensaje_para_guardar = mensajes_para_guardar.pop(0)
-            with open("logMensajes.txt", "a") as log_file:
-                log_file.write(mensaje_para_guardar + "\n")
-            time.sleep(1)
 
-def enviar_heartbeat():
-    while True:
-        for nodo in nodos_conocidos:
-            if nodo != mi_ip:  # No enviar a sí mismo
-                s.sendto("heartbeat".encode('utf-8'), (nodo, mi_puerto))
-        time.sleep(30)  # Enviar heartbeat cada 30 segundos
+def obtener_direccion_ip(interface):
+    try:
+        # Ejecutar el comando 'ip addr' y capturar la salida
+        resultado = subprocess.check_output(['ip', 'addr', 'show', interface]).decode('utf-8')
 
-def enviar_mensajes():
-    while True:
-        destino_ip = input("Ingrese la dirección IP de destino: ")
-        mensaje = input("Ingrese su mensaje: ")
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        mensaje_completo = f"{timestamp} - Mensaje ENVIADO a {destino_ip}: {mensaje}"
-        s.sendto(mensaje.encode('utf-8'), (destino_ip, mi_puerto))
-        mensajes_para_guardar.append(mensaje_completo)
+        # Buscar la línea que contiene 'inet' en la salida del comando
+        for linea in resultado.split('\n'):
+            if 'inet' in linea:
+                partes = linea.strip().split()
+                inet_index = partes.index('inet')
+                direccion_ip = partes[inet_index + 1].split('/')[0]
+                return direccion_ip
 
-# Configuración inicial
-interfaz = "ens33"  # Cambiar según la interfaz de red
-mi_ip = obtener_direccion_ip(interfaz)
-if mi_ip:
-    print(f"La dirección IP (inet) de la interfaz {interfaz} es: {mi_ip}")
-else:
-    print("No se pudo obtener la dirección IP.")
-mi_puerto = 12345 
+    except subprocess.CalledProcessError:
+        return "No se pudo obtener la dirección IP"
+    
 
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.bind((mi_ip, mi_puerto))
-s.settimeout(1)
+interfaz = "ens33"
+mi_ip=obtener_direccion_ip(interfaz)
 
-# Creación e inicio de hilos
-thread_recibir = threading.Thread(target=recibir_mensajes)
-thread_enviar = threading.Thread(target=enviar_mensajes)
-thread_guardar = threading.Thread(target=guardar_mensajes)
-thread_heartbeat = threading.Thread(target=enviar_heartbeat)
+# Crear socket UDP
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# Asignar IP y puerto local
+sock.bind((mi_ip, 12345))
+sock.settimeout(1)
 
-for thread in [thread_recibir, thread_enviar, thread_guardar, thread_heartbeat]:
-    thread.daemon = True
-    thread.start()
+# Registro de la última vez que se recibió un heartbeat de cada nodo
+last_heartbeat = {}
 
-while True:
-    pass
+# Iniciar hilos para enviar y recibir heartbeats
+send_thread = threading.Thread(target=send_heartbeats)
+receive_thread = threading.Thread(target=receive_heartbeats)
+send_thread.start()
+receive_thread.start()
+
+send_thread.join()
+receive_thread.join()
 
