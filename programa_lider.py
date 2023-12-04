@@ -68,10 +68,6 @@ def obtener_direccion_ip(interface):
 
 interfaz = "ens33"
 mi_ip = obtener_direccion_ip(interfaz)
-
-# Asignar el nodo maestro inicial
-nodo_maestro = elegir_nodo_maestro(NODES)
-
 # Crear socket UDP
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((mi_ip, 5000))
@@ -85,4 +81,8 @@ receive_thread.start()
 
 send_thread.join()
 receive_thread.join()
+# Asignar el nodo maestro inicial
+nodo_maestro = elegir_nodo_maestro(NODES)
+
+
 
