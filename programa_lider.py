@@ -8,7 +8,7 @@ NODES = [("192.168.106.135", 5000), ("192.168.106.137", 5000), ("192.168.106.138
 # Intervalo en segundos para enviar heartbeats
 HEARTBEAT_INTERVAL = 1
 # Tiempo máximo en segundos para considerar un nodo como inactivo
-MAX_INACTIVE_TIME = 15
+MAX_INACTIVE_TIME = 5
 
 # Registro de la última vez que se recibió un heartbeat de cada nodo
 last_heartbeat = {}
