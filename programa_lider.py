@@ -3,20 +3,30 @@ import threading
 import time
 import subprocess
 
+lista_de_nodos = ["192.168.192.1", "192.168.1.3", "192.168.1.4"]  # Ejemplo
+estado_de_nodos = {nodo: False for nodo in lista_de_nodos}  # False significa 'no confirmado'
+
 
 
 mensajes_para_guardar = []
-nodos_ips = []
+
+def seleccionar_lider(direccion_nueva, lider_actual):
+    if not lider_actual or direccion_nueva > lider_actual:
+        return direccion_nueva
+    return lider_actual
 
 
-def elegir_lider_y_anunciar():
-    global nodos_ips
-    if nodos_ips:
-        lider = max(nodos_ips)
-        mensaje_lider = f"Ahora el nuevo lider es {lider}"
-        print(mensaje_lider)
-        for ip in nodos_ips:
-            s.sendto(mensaje_lider.encode('utf-8'), (ip, 12345))
+
+def enviar_heartbeats():
+    while True:
+        for nodo in lista_de_nodos:
+            try:
+                s.sendto("heartbeat".encode('utf-8'), (nodo, mi_puerto))
+            except Exception as e:
+                print(f"No se pudo enviar heartbeat a {nodo}: {e}")
+        time.sleep(5)  # Enviar heartbeats cada 5 segundos, por ejemplo
+
+
 
 def obtener_direccion_ip(interface):
     try:
@@ -36,26 +46,22 @@ def obtener_direccion_ip(interface):
 
 
 def recibir_mensajes():
-    global nodos_ips
     mensaje_confirmado = False
     while True:
         try:
             mensaje_recibido, direccion = s.recvfrom(1024)
-            direccion_ip = direccion[0]
-            if direccion_ip not in nodos_ips:
-                nodos_ips.append(direccion_ip)
-                elegir_lider_y_anunciar()
-
             mensaje_decodificado = mensaje_recibido.decode('utf-8')
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             mensaje_completo = f"{timestamp} - Mensaje RECIBIDO de {direccion}: {mensaje_decodificado}"
             mensajes_para_guardar.append(mensaje_completo)
+            #print(mensaje_completo)
             
             if not mensaje_confirmado:
+                # Enviar un mensaje de confirmación al remitente
                 confirmacion = "Confirmo la recepcion de tu mensaje"
                 s.sendto(confirmacion.encode('utf-8'), direccion)
                 print(mensaje_completo)
-                mensaje_confirmado = True
+                mensaje_confirmado=True
         except socket.timeout:
             mensaje_confirmado = False
 
@@ -82,6 +88,16 @@ def enviar_mensajes():
         mensajes_para_guardar.append(mensaje_completo)
 
 
+def verificar_nodos():
+    while True:
+        for nodo in lista_de_nodos:
+            if estado_de_nodos[nodo]:
+                print(f"Nodo {nodo} está vivo.")
+            else:
+                print(f"Nodo {nodo} podría estar caído.")
+        time.sleep(10)  # Verificar cada 10 segundos, por ejemplo
+
+
 # Configura la dirección y el puerto en esta máquina virtual
 # Se cambia conforme el ip de la maquina virtual
 interfaz = "ens33"  # Reemplaza con el nombre de la interfaz que deseas consultar
@@ -95,6 +111,15 @@ mi_puerto = 12345
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind((mi_ip, mi_puerto))
 s.settimeout(1)
+
+thread_enviar_heartbeats = threading.Thread(target=enviar_heartbeats)
+thread_enviar_heartbeats.daemon = True
+thread_enviar_heartbeats.start()
+
+thread_verificar_nodos = threading.Thread(target=verificar_nodos)
+thread_verificar_nodos.daemon = True
+thread_verificar_nodos.start()
+
 
 # Crea hilos para recibir, enviar y guardar mensajes
 thread_recibir = threading.Thread(target=recibir_mensajes)
