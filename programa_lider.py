@@ -9,7 +9,7 @@ NODES = [("192.168.106.135", 5000), ("192.168.106.137", 5000), ("192.168.106.138
 HEARTBEAT_INTERVAL = 5
 # Tiempo máximo en segundos para considerar un nodo como inactivo
 MAX_INACTIVE_TIME = 15
-
+maestro_actual = None
 # Esta función envía heartbeats a todos los nodos
 def send_heartbeats():
     while True:
