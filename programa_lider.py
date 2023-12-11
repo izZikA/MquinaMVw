@@ -4,7 +4,7 @@ import time
 import subprocess
 
 # Configuraciones iniciales
-NODES = [("192.168.106.135", 5000), ("192.168.106.137", 5000), ("192.168.106.138", 5000)]  # Asegúrate de ajustar estas direcciones IP
+NODES = [("192.168.192.131", 5000), ("192.168.192.130", 5000), ("192.168.192.132", 5000)]  # Asegúrate de ajustar estas direcciones IP
 HEARTBEAT_INTERVAL = 5
 MAX_INACTIVE_TIME = 15
 
