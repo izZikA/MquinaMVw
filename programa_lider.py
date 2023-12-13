@@ -5,12 +5,13 @@ import subprocess
 
 # Configuraciones iniciales
 NODES = [("192.168.192.131", 5000), ("192.168.192.130", 5000), ("192.168.192.132", 5000), ("192.168.192.133", 5000)]
-HEARTBEAT_INTERVAL = 10
+HEARTBEAT_INTERVAL = 5
 MAX_INACTIVE_TIME = 15
 
 # Variables globales
 maestro_actual = None
 soy_el_maestro = False
+master_lock = threading.Lock()
 last_heartbeat = {}
 mi_ip = None  # Se definirá después
 
@@ -51,12 +52,13 @@ def receive_heartbeats():
             data, addr = sock.recvfrom(1024)
             mensaje = data.decode()
             last_heartbeat[addr] = time.time()
-            print(f"Heartbeat recibido de {addr}, mensaje: {mensaje}")
 
-            if "soy el nodo maestro" in mensaje:
-                actualizar_estado_maestro(addr[0])
-            elif mi_ip > addr[0] and not hay_maestro_activo():
-                declarar_como_maestro()
+            with master_lock:  # Asegurar la atomicidad de la actualización del estado del maestro
+                if "soy el nodo maestro" in mensaje:
+                    if addr[0] != maestro_actual and (not maestro_actual or addr[0] > maestro_actual):
+                        actualizar_estado_maestro(addr[0])
+                elif mi_ip > addr[0] and not hay_maestro_activo():
+                    declarar_como_maestro()
         except socket.timeout:
             pass
         verificar_nodos_inactivos()
@@ -89,6 +91,8 @@ def verificar_nodos_inactivos():
                 if mi_ip == node[0]:
                     soy_el_maestro = False
             print(f"{node} ha dejado de estar activo")
+
+
 
 # Configuración inicial del nodo
 interfaz = "ens33"  # Asegúrate de que esta interfaz es la correcta
