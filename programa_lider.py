@@ -4,7 +4,7 @@ import time
 import subprocess
 
 # Configuraciones iniciales
-NODES = [("192.168.192.131", 5000), ("192.168.192.130", 5000), ("192.168.192.132", 5000), ("192.168.192.133", 5000)]  # Asegúrate de ajustar estas direcciones IP
+NODES = [("192.168.192.131", 5000), ("192.168.192.130", 5000), ("192.168.192.132", 5000), ("192.168.192.133", 5000)]
 HEARTBEAT_INTERVAL = 5
 MAX_INACTIVE_TIME = 15
 
@@ -13,6 +13,7 @@ maestro_actual = None
 soy_el_maestro = False
 master_lock = threading.Lock()  # Lock para controlar el acceso a la variable maestro_actual
 last_heartbeat = {}
+
 
 # Función para obtener la dirección IP del nodo actual
 def obtener_direccion_ip(interface):
@@ -49,19 +50,29 @@ def receive_heartbeats():
             mensaje = data.decode()
             last_heartbeat[addr] = time.time()
 
-            # Adquirir el lock antes de verificar o actualizar el maestro actual
             with master_lock:
                 if "soy el nodo maestro" in mensaje:
-                    # Actualizar solo si no hay un maestro o si el que envía es de IP mayor
                     if not maestro_actual or addr[0] > maestro_actual:
                         actualizar_estado_maestro(addr[0])
-                elif not maestro_actual and mi_ip > addr[0]:
-                    declarar_como_maestro()
+                else:
+                    # Si recibimos un heartbeat normal, y no hay maestro, se considera ser maestro
+                    if not maestro_actual and deberia_ser_maestro():
+                        declarar_como_maestro()
         except socket.timeout:
             pass
         verificar_nodos_inactivos()
 
-        
+
+def deberia_ser_maestro():
+    global mi_ip, last_heartbeat
+    # Se considera ser maestro si tiene la IP más alta entre todos los nodos conocidos
+    for node in NODES:
+        if node[0] != mi_ip and last_heartbeat.get(node, 0) + MAX_INACTIVE_TIME > time.time():
+            if node[0] > mi_ip:
+                return False
+    return True
+
+
 # Actualizar el estado del nodo maestro
 def actualizar_estado_maestro(ip_maestro):
     global maestro_actual
