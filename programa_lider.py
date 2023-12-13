@@ -5,7 +5,7 @@ import subprocess
 
 # Configuraciones iniciales
 NODES = [("192.168.192.131", 5000), ("192.168.192.130", 5000), ("192.168.192.132", 5000), ("192.168.192.133", 5000)]
-HEARTBEAT_INTERVAL = 5
+HEARTBEAT_INTERVAL = 10
 MAX_INACTIVE_TIME = 15
 
 # Variables globales
