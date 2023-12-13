@@ -7,13 +7,13 @@ import subprocess
 NODES = [("192.168.192.131", 5000), ("192.168.192.130", 5000), ("192.168.192.132", 5000), ("192.168.192.133", 5000)]
 HEARTBEAT_INTERVAL = 5
 MAX_INACTIVE_TIME = 15
+ELECTION_WAIT_TIME = 2  # Tiempo de espera para respuestas durante la elección
 
 # Variables globales
 maestro_actual = None
 soy_el_maestro = False
-master_lock = threading.Lock()  # Lock para controlar el acceso a la variable maestro_actual
 last_heartbeat = {}
-
+respuestas_maestro = set()
 
 # Función para obtener la dirección IP del nodo actual
 def obtener_direccion_ip(interface):
@@ -43,35 +43,24 @@ def send_heartbeats():
 
 # Función para recibir heartbeats y actualizar el estado de los nodos
 def receive_heartbeats():
-    global maestro_actual, soy_el_maestro
     while True:
         try:
             data, addr = sock.recvfrom(1024)
             mensaje = data.decode()
             last_heartbeat[addr] = time.time()
+            print(f"Heartbeat recibido de {addr}, mensaje: {mensaje}")
 
-            with master_lock:
-                if "soy el nodo maestro" in mensaje:
-                    if not maestro_actual or addr[0] > maestro_actual:
-                        actualizar_estado_maestro(addr[0])
-                else:
-                    # Si recibimos un heartbeat normal, y no hay maestro, se considera ser maestro
-                    if not maestro_actual and deberia_ser_maestro():
-                        declarar_como_maestro()
+            if "Solicitud de maestro" in mensaje:
+                manejar_solicitud_maestro(addr)
+            elif "Respuesta a solicitud de maestro" in mensaje:
+                respuestas_maestro.add(addr[0])
+            elif "soy el nodo maestro" in mensaje:
+                actualizar_estado_maestro(addr[0])
+            elif mi_ip > addr[0] and not hay_maestro_activo():
+                declarar_como_maestro()
         except socket.timeout:
             pass
         verificar_nodos_inactivos()
-
-
-def deberia_ser_maestro():
-    global mi_ip, last_heartbeat
-    # Se considera ser maestro si tiene la IP más alta entre todos los nodos conocidos
-    for node in NODES:
-        if node[0] != mi_ip and last_heartbeat.get(node, 0) + MAX_INACTIVE_TIME > time.time():
-            if node[0] > mi_ip:
-                return False
-    return True
-
 
 # Actualizar el estado del nodo maestro
 def actualizar_estado_maestro(ip_maestro):
@@ -81,8 +70,12 @@ def actualizar_estado_maestro(ip_maestro):
 # Declarar este nodo como maestro
 def declarar_como_maestro():
     global soy_el_maestro
-    soy_el_maestro = True
-    print(f"{mi_ip} se ha declarado como el nodo maestro")
+    solicitar_ser_maestro()
+    time.sleep(ELECTION_WAIT_TIME)  # Esperar un tiempo para recibir respuestas
+    if not hay_respuesta_de_maestro_superior():
+        soy_el_maestro = True
+        print(f"{mi_ip} se ha declarado como el nodo maestro")
+        # Notificar a los demás nodos, si es necesario
 
 # Verificar si hay un maestro activo
 def hay_maestro_activo():
@@ -100,6 +93,32 @@ def verificar_nodos_inactivos():
                 maestro_actual = None
                 soy_el_maestro = False
             print(f"{node} ha dejado de estar activo")
+
+# Solicitar ser el maestro
+def solicitar_ser_maestro():
+    msg = f"Solicitud de maestro desde {mi_ip}"
+    for node in NODES:
+        try:
+            sock.sendto(msg.encode(), node)
+        except Exception as e:
+            print(f"Error al enviar solicitud de maestro a {node}: {e}")
+
+# Manejo de solicitud de maestro
+def manejar_solicitud_maestro(addr):
+    if mi_ip < addr[0]:  # asumiendo que una IP más baja tiene mayor prioridad
+        enviar_respuesta_maestro(addr)
+
+# Enviar respuesta a una solicitud de maestro
+def enviar_respuesta_maestro(addr):
+    msg = f"Respuesta a solicitud de maestro desde {mi_ip}"
+    try:
+        sock.sendto(msg.encode(), addr)
+    except Exception as e:
+        print(f"Error al enviar respuesta a solicitud de maestro a {addr}: {e}")
+
+# Verificar si hay respuestas de un maestro con mayor prioridad
+def hay_respuesta_de_maestro_superior():
+    return any(node_ip < mi_ip for node_ip in respuestas_maestro)
 
 # Configuración inicial del nodo
 interfaz = "ens33"
