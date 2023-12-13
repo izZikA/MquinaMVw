@@ -1,82 +1,106 @@
 import socket
 import threading
 import time
+import subprocess
+from functools import cmp_to_key
 
-class Node:
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
-        self.neighbors = []  # Lista de otros nodos (tuplas de host, puerto)
+# Direcciones IP y puertos de los nodos en la red
+NODES = [("192.168.192.130", 5000), ("192.168.192.131", 5000), ("192.168.192.132", 5000), ("192.168.192.133", 5000)]
+# Intervalo en segundos para enviar heartbeats
+HEARTBEAT_INTERVAL = 5
+# Tiempo máximo en segundos para considerar un nodo como inactivo
+MAX_INACTIVE_TIME = 15
 
-    def start_server(self):
-        """ Inicia el servidor para escuchar heartbeats. """
-        thread = threading.Thread(target=self.run_server)
-        thread.start()
+# Variable global para almacenar la IP del nodo maestro
+master_node = None
+# Lock para manejar el acceso concurrente a la variable master_node
+master_lock = threading.Lock()
 
-    def run_server(self):
-        """ Maneja la lógica del servidor. """
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind((self.host, self.port))
-            s.listen()
+# Registro de la última vez que se recibió un heartbeat de cada nodo
+last_heartbeat = {}
 
-            while True:
-                conn, addr = s.accept()
-                with conn:
-                    print(f"Heartbeat recibido de {addr}")
-                    # Aquí puedes añadir lógica para responder o procesar el heartbeat
-
-    def send_heartbeat(self):
-        """ Envía un heartbeat a todos los nodos vecinos. """
-        for neighbor in self.neighbors:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                try:
-                    s.connect(neighbor)
-                    s.sendall(b"Heartbeat")
-                    print(f"Heartbeat enviado a {neighbor}")
-                except ConnectionRefusedError:
-                    print(f"No se pudo conectar a {neighbor}")
-
-    def add_neighbor(self, neighbor):
-        """ Añade un vecino a la lista. """
-        self.neighbors.append(neighbor)
-def main():
-    # Crear nodos con sus respectivas direcciones IP
-    node1 = Node('192.168.192.131', 65000)
-    node2 = Node('192.168.192.130', 65000)
-    node3 = Node('192.168.192.132', 65000)
-    node4 = Node('192.168.192.133', 65000)
-
-    # Añadir vecinos para cada nodo
-    node1.add_neighbor(('192.168.192.130', 65000))
-    node1.add_neighbor(('192.168.192.132', 65000))
-    node1.add_neighbor(('192.168.192.133', 65000))
-
-    node2.add_neighbor(('192.168.192.131', 65000))
-    node2.add_neighbor(('192.168.192.132', 65000))
-    node2.add_neighbor(('192.168.192.133', 65000))
-
-    node3.add_neighbor(('192.168.192.131', 65000))
-    node3.add_neighbor(('192.168.192.130', 65000))
-    node3.add_neighbor(('192.168.192.133', 65000))
-
-    node4.add_neighbor(('192.168.192.131', 65000))
-    node4.add_neighbor(('192.168.192.130', 65000))
-    node4.add_neighbor(('192.168.192.132', 65000))
-
-    # Iniciar el servidor en cada nodo
-    node1.start_server()
-    node2.start_server()
-    node3.start_server()
-    node4.start_server()
-
-    # Enviar heartbeats en un bucle
+def send_heartbeats():
     while True:
-        time.sleep(5)  # Intervalo de envío de heartbeat
-        node1.send_heartbeat()
-        node2.send_heartbeat()
-        node3.send_heartbeat()
-        node4.send_heartbeat()
+        for node in NODES:
+            try:
+                sock.sendto(b"Heartbeat", node)
+            except Exception as e:
+                print(f"Error al enviar heartbeat a {node}: {e}")
+        time.sleep(HEARTBEAT_INTERVAL)
 
-if __name__ == "__main__":
-    main()
+def receive_heartbeats():
+    while True:
+        try:
+            data, addr = sock.recvfrom(1024)
+            last_heartbeat[addr] = time.time()
+            print(f"Heartbeat recibido de {addr}, nodo activo")
+            update_master_status(data, addr)
+        except socket.timeout:
+            pass
 
+        # Verificar nodos inactivos y elegir nuevo maestro si es necesario
+        current_time = time.time()
+        for node in NODES:
+            if current_time - last_heartbeat.get(node, 0) > MAX_INACTIVE_TIME:
+                print(f"{node} ha dejado de estar activo")
+                last_heartbeat[node] = current_time
+
+        choose_master()
+
+def choose_master():
+    with master_lock:
+        active_nodes = [node for node in NODES if last_heartbeat.get(node, 0) > time.time() - MAX_INACTIVE_TIME]
+        if active_nodes:
+            # Elegir el nodo con la dirección IP más alta
+            global master_node
+            master_node = max(active_nodes, key=lambda node: socket.inet_aton(node[0]))
+            print(f"El nodo maestro es {master_node}")
+
+def broadcast_master_status():
+    while True:
+        with master_lock:
+            if master_node:
+                for node in NODES:
+                    try:
+                        sock.sendto(f"Master:{master_node[0]}".encode(), node)
+                    except Exception as e:
+                        print(f"Error al enviar estado del maestro a {node}: {e}")
+        time.sleep(HEARTBEAT_INTERVAL)
+
+def update_master_status(data, addr):
+    if data.startswith(b"Master:"):
+        with master_lock:
+            _, master_ip = data.decode().split(":")
+            global master_node
+            master_node = (master_ip, 5000)
+
+def obtener_direccion_ip(interface):
+    try:
+        resultado = subprocess.check_output(['ip', 'addr', 'show', interface]).decode('utf-8')
+        for linea in resultado.split('\n'):
+            if 'inet' in linea:
+                partes = linea.strip().split()
+                inet_index = partes.index('inet')
+                direccion_ip = partes[inet_index + 1].split('/')[0]
+                return direccion_ip
+    except subprocess.CalledProcessError:
+        return "No se pudo obtener la dirección IP"
+
+interfaz = "ens33"
+mi_ip = obtener_direccion_ip(interfaz)
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind((mi_ip, 5000))
+sock.settimeout(1)
+
+send_thread = threading.Thread(target=send_heartbeats)
+receive_thread = threading.Thread(target=receive_heartbeats)
+master_broadcast_thread = threading.Thread(target=broadcast_master_status)
+
+send_thread.start()
+receive_thread.start()
+master_broadcast_thread.start()
+
+send_thread.join()
+receive_thread.join()
+master_broadcast_thread.join()
