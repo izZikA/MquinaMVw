@@ -31,18 +31,23 @@ def obtener_direccion_ip(interface):
 # Función para enviar heartbeats a todos los nodos
 def send_heartbeats():
     global soy_el_maestro
+    next_heartbeat_time = time.time() + HEARTBEAT_INTERVAL
     while True:
-        msg = f"Heartbeat from {mi_ip}"
-        if soy_el_maestro:
-            msg += " | soy el nodo maestro"
-        for node in NODES:
-            if node[0] != mi_ip:  # No enviar a sí mismo
-                try:
-                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                        sock.sendto(msg.encode(), node)
-                except Exception as e:
-                    print(f"Error al enviar heartbeat a {node}: {e}")
-        time.sleep(HEARTBEAT_INTERVAL)
+        current_time = time.time()
+        if current_time >= next_heartbeat_time:
+            msg = f"Heartbeat from {mi_ip}"
+            if soy_el_maestro:
+                msg += " | soy el nodo maestro"
+            for node in NODES:
+                if node[0] != mi_ip:  # No enviar a sí mismo
+                    try:
+                        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                            sock.sendto(msg.encode(), node)
+                    except Exception as e:
+                        print(f"Error al enviar heartbeat a {node}: {e}")
+            next_heartbeat_time = current_time + HEARTBEAT_INTERVAL
+        # Esperar un tiempo muy breve para evitar un uso elevado de CPU
+        time.sleep(0.1)
 
 # Función para recibir heartbeats y actualizar el estado de los nodos
 def receive_heartbeats():
@@ -63,6 +68,8 @@ def receive_heartbeats():
             pass
         verificar_nodos_inactivos()
 
+
+
 # Actualizar el estado del nodo maestro
 def actualizar_estado_maestro(ip_maestro):
     global maestro_actual
@@ -79,19 +86,23 @@ def hay_maestro_activo():
     global maestro_actual
     return maestro_actual and (time.time() - last_heartbeat.get((maestro_actual, 5000), 0)) < MAX_INACTIVE_TIME
 
-# Verificar nodos inactivos
 def verificar_nodos_inactivos():
     global maestro_actual, soy_el_maestro
     current_time = time.time()
-    for node in NODES:
-        if current_time - last_heartbeat.get(node, 0) > MAX_INACTIVE_TIME:
+    inactivos = []
+    with master_lock:  # Asegurar la atomicidad de la comprobación de nodos inactivos
+        for node, last_time in last_heartbeat.items():
+            if current_time - last_time > MAX_INACTIVE_TIME:
+                inactivos.append(node)
+        
+        for node in inactivos:
             if node[0] == maestro_actual:
                 print(f"El nodo maestro {node} ha dejado de estar activo")
                 maestro_actual = None
                 if mi_ip == node[0]:
                     soy_el_maestro = False
             print(f"{node} ha dejado de estar activo")
-
+            del last_heartbeat[node]  # Eliminar el nodo inactivo del registro
 
 
 # Configuración inicial del nodo
