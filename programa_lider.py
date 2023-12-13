@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 import subprocess
+import random
 from functools import cmp_to_key
 
 # Direcciones IP y puertos de los nodos en la red
@@ -29,6 +30,7 @@ def send_heartbeats():
         time.sleep(HEARTBEAT_INTERVAL)
 
 def receive_heartbeats():
+    global master_node
     while True:
         try:
             data, addr = sock.recvfrom(1024)
@@ -38,20 +40,23 @@ def receive_heartbeats():
         except socket.timeout:
             pass
 
-        # Verificar nodos inactivos y elegir nuevo maestro si es necesario
         current_time = time.time()
         for node in NODES:
             if current_time - last_heartbeat.get(node, 0) > MAX_INACTIVE_TIME:
                 print(f"{node} ha dejado de estar activo")
                 last_heartbeat[node] = current_time
 
-        choose_master()
+        with master_lock:
+            if master_node and (master_node not in last_heartbeat or current_time - last_heartbeat[master_node] > MAX_INACTIVE_TIME):
+                print(f"Nodo maestro {master_node} ha dejado de estar activo. Iniciando nueva elección.")
+                master_node = None
+                time.sleep(random.uniform(0.5, 1.5))  # Retraso aleatorio para evitar condiciones de carrera
+                choose_master()
 
 def choose_master():
     with master_lock:
         active_nodes = [node for node in NODES if last_heartbeat.get(node, 0) > time.time() - MAX_INACTIVE_TIME]
         if active_nodes:
-            # Elegir el nodo con la dirección IP más alta
             global master_node
             master_node = max(active_nodes, key=lambda node: socket.inet_aton(node[0]))
             print(f"El nodo maestro es {master_node}")
