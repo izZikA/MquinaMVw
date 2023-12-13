@@ -38,7 +38,7 @@ def receive_heartbeats_modified():
                     if addr != master_node:
                         print(f"Nuevo nodo maestro elegido: {addr}")
                         master_node = addr
-            #print(f"Heartbeat recibido de {addr}, nodo activo")
+            print(f"Heartbeat recibido de {addr}, nodo activo")
         except socket.timeout:
             pass
 
@@ -47,20 +47,14 @@ def receive_heartbeats_modified():
 
 # Función para determinar el nodo maestro
 def determine_master():
-    global master_node, nodos_caidos
+    global master_node
     with master_lock:
-        current_time = time.time()
-        for node in NODES:
-            if current_time - last_heartbeat.get(node, 0) > MAX_INACTIVE_TIME and node not in nodos_caidos:
-                nodos_caidos.add(node)
-                print(f"El nodo {node} ha dejado de estar activo")
-                # Revisar y actualizar el nodo maestro si es necesario
-                active_nodes = {n: last_heartbeat[n] for n in NODES if time.time() - last_heartbeat.get(n, 0) <= MAX_INACTIVE_TIME}
-                if active_nodes:
-                    highest_ip = max(active_nodes.keys())
-                    if highest_ip != master_node:
-                        master_node = highest_ip
-                        print(f"El nodo maestro actual es: {master_node}")
+        active_nodes = {node: last_heartbeat[node] for node in NODES if time.time() - last_heartbeat.get(node, 0) <= MAX_INACTIVE_TIME}
+        if active_nodes:
+            highest_ip = max(active_nodes.keys())
+            if highest_ip != master_node:
+                master_node = highest_ip
+                print(f"El nodo maestro actual es: {master_node}")
 
 def obtener_direccion_ip(interface):
     try:
@@ -92,7 +86,6 @@ master_lock = threading.Lock()
 
 # Nodo maestro actual
 master_node = None
-nodos_caidos = set()
 
 # Iniciar hilos para enviar y recibir heartbeats
 send_thread = threading.Thread(target=send_heartbeats)
