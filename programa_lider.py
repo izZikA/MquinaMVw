@@ -61,13 +61,20 @@ def receive_heartbeats():
 def choose_master():
     with master_lock:
         active_nodes = [node for node in NODES if last_heartbeat.get(node, 0) > time.time() - MAX_INACTIVE_TIME]
-        if active_nodes:
-            # Elegir el nodo con la dirección IP más alta
-            new_master = max(active_nodes, key=lambda node: socket.inet_aton(node[0]))
-            global master_node
-            if new_master != master_node:
-                master_node = new_master
-                print(f"El nuevo nodo maestro es {master_node}")
+        if not active_nodes:
+            print("No hay nodos activos para elegir un maestro.")
+            return
+        
+        # Elegir el nodo con la dirección IP más alta
+        new_master = max(active_nodes, key=lambda node: socket.inet_aton(node[0]))
+        global master_node
+        if new_master != master_node:
+            master_node = new_master
+            print(f"El nuevo nodo maestro es {master_node}")
+        else:
+            print("El maestro actual sigue siendo el mismo.")
+
+
 
 def broadcast_master_status():
     while True:
