@@ -22,9 +22,14 @@ last_heartbeat = {}
 
 def send_heartbeats():
     while True:
+        heartbeat_msg = b"Heartbeat"
+        with master_lock:
+            if master_node == (mi_ip, 5000):  # Verificar si este nodo es el maestro
+                heartbeat_msg = b"Heartbeat:Master"
+
         for node in NODES:
             try:
-                sock.sendto(b"Heartbeat", node)
+                sock.sendto(heartbeat_msg, node)
             except Exception as e:
                 print(f"Error al enviar heartbeat a {node}: {e}")
         time.sleep(HEARTBEAT_INTERVAL)
@@ -57,9 +62,12 @@ def choose_master():
     with master_lock:
         active_nodes = [node for node in NODES if last_heartbeat.get(node, 0) > time.time() - MAX_INACTIVE_TIME]
         if active_nodes:
+            # Elegir el nodo con la dirección IP más alta
+            new_master = max(active_nodes, key=lambda node: socket.inet_aton(node[0]))
             global master_node
-            master_node = max(active_nodes, key=lambda node: socket.inet_aton(node[0]))
-            print(f"El nodo maestro es {master_node}")
+            if new_master != master_node:
+                master_node = new_master
+                print(f"El nuevo nodo maestro es {master_node}")
 
 def broadcast_master_status():
     while True:
