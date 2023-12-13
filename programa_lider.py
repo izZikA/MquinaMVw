@@ -4,7 +4,7 @@ import time
 import subprocess
 
 # Configuraciones iniciales
-NODES = [("192.168.192.131", 5000), ("192.168.192.130", 5000), ("192.168.192.132", 5000), ("192.168.192.133", 5000)]  # Asegúrate de ajustar estas direcciones IP
+NODES = [("192.168.192.131", 5000), ("192.168.192.130", 5000), ("192.168.192.132", 5000), ("192.168.192.133", 5000)]
 HEARTBEAT_INTERVAL = 5
 MAX_INACTIVE_TIME = 15
 
@@ -12,6 +12,7 @@ MAX_INACTIVE_TIME = 15
 maestro_actual = None
 soy_el_maestro = False
 last_heartbeat = {}
+mi_ip = None  # Se definirá después
 
 # Función para obtener la dirección IP del nodo actual
 def obtener_direccion_ip(interface):
@@ -28,25 +29,30 @@ def obtener_direccion_ip(interface):
 
 # Función para enviar heartbeats a todos los nodos
 def send_heartbeats():
+    global soy_el_maestro
     while True:
         msg = f"Heartbeat from {mi_ip}"
         if soy_el_maestro:
             msg += " | soy el nodo maestro"
         for node in NODES:
-            try:
-                sock.sendto(msg.encode(), node)
-            except Exception as e:
-                print(f"Error al enviar heartbeat a {node}: {e}")
+            if node[0] != mi_ip:  # No enviar a sí mismo
+                try:
+                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                        sock.sendto(msg.encode(), node)
+                except Exception as e:
+                    print(f"Error al enviar heartbeat a {node}: {e}")
         time.sleep(HEARTBEAT_INTERVAL)
 
 # Función para recibir heartbeats y actualizar el estado de los nodos
 def receive_heartbeats():
+    global maestro_actual, soy_el_maestro
     while True:
         try:
             data, addr = sock.recvfrom(1024)
             mensaje = data.decode()
             last_heartbeat[addr] = time.time()
             print(f"Heartbeat recibido de {addr}, mensaje: {mensaje}")
+
             if "soy el nodo maestro" in mensaje:
                 actualizar_estado_maestro(addr[0])
             elif mi_ip > addr[0] and not hay_maestro_activo():
@@ -73,21 +79,28 @@ def hay_maestro_activo():
 
 # Verificar nodos inactivos
 def verificar_nodos_inactivos():
-    global maestro_actual
+    global maestro_actual, soy_el_maestro
     current_time = time.time()
     for node in NODES:
         if current_time - last_heartbeat.get(node, 0) > MAX_INACTIVE_TIME:
             if node[0] == maestro_actual:
                 print(f"El nodo maestro {node} ha dejado de estar activo")
                 maestro_actual = None
-                soy_el_maestro = False
+                if mi_ip == node[0]:
+                    soy_el_maestro = False
             print(f"{node} ha dejado de estar activo")
 
 # Configuración inicial del nodo
-interfaz = "ens33"
+interfaz = "ens33"  # Asegúrate de que esta interfaz es la correcta
 mi_ip = obtener_direccion_ip(interfaz)
+if mi_ip == "No se pudo obtener la dirección IP":
+    raise Exception("No se pudo determinar la dirección IP del nodo")
 
-# Creación y configuración del socket UDP
+# Añade tu dirección IP a la lista de nodos si no está presente
+if (mi_ip, 5000) not in NODES:
+    NODES.append((mi_ip, 5000))
+
+# Creación y configuración del socket UDP para recibir
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.bind((mi_ip, 5000))
 sock.settimeout(1)
@@ -98,6 +111,6 @@ receive_thread = threading.Thread(target=receive_heartbeats)
 send_thread.start()
 receive_thread.start()
 
-# Los hilos se unen al hilo principal para mantenerse ejecutando
-send_thread.join()
-receive_thread.join()
+# No es necesario unir los hilos al principal si se desea que el programa continúe ejecutando otras tareas
+# Si el script debe mantenerse en ejecución, puedes usar un bucle aquí
+
