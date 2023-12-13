@@ -59,20 +59,25 @@ def receive_heartbeats():
                 choose_master()
 
 def choose_master():
+    global master_node
     with master_lock:
-        active_nodes = [node for node in NODES if last_heartbeat.get(node, 0) > time.time() - MAX_INACTIVE_TIME]
+        # Filtramos solo los nodos activos.
+        active_nodes = [(node_ip, port) for node_ip, port in NODES if last_heartbeat.get((node_ip, port), 0) > time.time() - MAX_INACTIVE_TIME]
+        
+        # Si no hay nodos activos, no se puede elegir un maestro.
         if not active_nodes:
             print("No hay nodos activos para elegir un maestro.")
+            master_node = None
             return
         
-        # Elegir el nodo con la dirección IP más alta
+        # Seleccionar el nodo con la dirección IP más alta como maestro.
         new_master = max(active_nodes, key=lambda node: socket.inet_aton(node[0]))
-        global master_node
+        
+        # Si hay un cambio en el nodo maestro, actualizar y mostrar mensaje.
         if new_master != master_node:
             master_node = new_master
             print(f"El nuevo nodo maestro es {master_node}")
-        else:
-            print("El maestro actual sigue siendo el mismo.")
+
 
 
 
@@ -91,8 +96,17 @@ def update_master_status(data, addr):
     if data.startswith(b"Master:"):
         with master_lock:
             _, master_ip = data.decode().split(":")
-            global master_node
-            master_node = (master_ip, 5000)
+            # Comprobar si la IP recibida corresponde a algún nodo en NODES.
+            potential_new_master = (master_ip, 5000)
+            if potential_new_master in NODES:
+                global master_node
+                # Si el maestro ha cambiado, actualizar y mostrar mensaje.
+                if master_node != potential_new_master:
+                    master_node = potential_new_master
+                    print(f"El nuevo nodo maestro (recibido) es {master_node}")
+            else:
+                print(f"IP de maestro no reconocida: {master_ip}")
+
 
 def obtener_direccion_ip(interface):
     try:
