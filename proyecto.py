@@ -31,8 +31,8 @@ def load_inventory_from_file(file_path="inventario.json"):
 
 class Node:
         #Listado de los nodos. Todos saben de todos. Se hace la busqueda por IP
-        lista_ip_nodo = {"192.168.253.129":1,"192.168.253.130":2,"192.168.253.132":3,"192.168.253.133":4,"192.168.253.134":5}
-        lista_nodo_ip = {1:"192.168.253.129",2:"192.168.253.130",3:"192.168.253.132",4:"192.168.253.133",5:"192.168.253.134"}
+        lista_ip_nodo = {"192.168.106.137":1,"192.168.106.135":2,"192.168.106.138":3,"192.168.106.140":4,"192.168.106.136":5}
+        lista_nodo_ip = {1:"192.168.106.137",2:"192.168.106.135",3:"192.168.106.138",4:"192.168.106.140",5:"192.168.106.136"}
 
         def __init__(self, node_id, capacity):
             self.last_heartbeat = {}  # Inicializar el registro de heartbeats
@@ -349,3 +349,4 @@ def main():
             sel_comando()
 
 main()
+
