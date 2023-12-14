@@ -106,8 +106,7 @@ def obtener_ip_local():
 if __name__ == "__main__":
     try:
         datos_json = {
-            
-        }  "101": {
+    "101": {
     "articulo": "Playera",
     "categoria": "Ropa",
     "precio": 500,
@@ -305,7 +304,7 @@ if __name__ == "__main__":
     "Inv4": 0,
     "Inv5": 0
   }
-
+}       
         inventario = Inventario(datos_json)
         mi_nodo = Nodo(obtener_ip_local(), 5000, inventario)
         mi_nodo.iniciar()
